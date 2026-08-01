@@ -5,6 +5,8 @@ import android.content.ContentValues;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
+import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -26,6 +28,9 @@ import java.util.*;
 
 public class MainActivity extends Activity implements TextToSpeech.OnInitListener {
     private TextToSpeech tts;
+    private AudioManager audioManager;
+    private AudioFocusRequest audioFocusRequest;
+    private boolean hasAudioFocus = false;
     private EditText input;
     private Spinner voiceSpinner;
     private Switch longTextMode, dhammaMode;
@@ -46,6 +51,8 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         buildUi();
+        audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+        createAudioFocusRequest();
         tts = new TextToSpeech(this, this);
     }
 
@@ -240,11 +247,10 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
 
         speak.setOnClickListener(v -> startSpeaking());
         stop.setOnClickListener(v -> {
-            readingActive = false;
+            stopReading();
             saving = false;
             chunks.clear();
             chunkIndex = 0;
-            if (tts != null) tts.stop();
             status.setText("หยุดแล้ว");
         });
         save.setOnClickListener(v -> startSaving());
@@ -373,6 +379,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
             public void onError(String id) {
                 readingActive = false;
                 saving = false;
+                releaseAudioFocus();
                 runOnUiThread(() -> status.setText("เกิดข้อผิดพลาดในการสร้างเสียง"));
             }
             public void onDone(String id) {
@@ -387,7 +394,8 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
                             int total = Integer.parseInt(parts[3]);
                             if (session == readingSession && current == total - 1) {
                                 readingActive = false;
-                                runOnUiThread(() -> status.setText("อ่านครบทุกช่วงแล้ว"));
+                                releaseAudioFocus();
+                                runOnUiThread(() -> status.setText("อ่านครบทุกช่วงแล้ว • Stable"));
                             }
                         } catch (NumberFormatException ignored) {}
                     }
@@ -453,7 +461,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     }
 
     private boolean prepareText() {
-        String value = input.getText().toString().trim();
+        String value = normalizeForStableReading(input.getText().toString());
         if (value.isEmpty()) {
             Toast.makeText(this, "กรุณาใส่ข้อความก่อน", Toast.LENGTH_SHORT).show();
             return false;
@@ -474,6 +482,17 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         }
         chunkIndex = 0;
         return !chunks.isEmpty();
+    }
+
+    private String normalizeForStableReading(String value) {
+        if (value == null) return "";
+        return value
+            .replace("\r\n", "\n")
+            .replace('\r', '\n')
+            .replaceAll("[\\t\\x0B\\f ]+", " ")
+            .replaceAll(" *\\n *", "\n")
+            .replaceAll("\\n{3,}", "\n\n")
+            .trim();
     }
 
     private void splitLongText(String value) {
@@ -531,6 +550,13 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
 
     private void startSpeaking() {
         if (tts == null || !prepareText()) return;
+
+        if (readingActive) stopReading();
+        if (!requestStableAudioFocus()) {
+            status.setText("ยังเริ่มอ่านไม่ได้ • มีแอปอื่นกำลังใช้เสียง");
+            return;
+        }
+
         saving = false;
         readingActive = true;
         applySettings();
@@ -546,10 +572,56 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
             if (result != TextToSpeech.SUCCESS) {
                 readingActive = false;
                 tts.stop();
+                releaseAudioFocus();
                 status.setText("จัดคิวอ่านข้อความไม่สำเร็จ");
                 return;
             }
         }
+    }
+
+    private void createAudioFocusRequest() {
+        if (audioManager == null) return;
+        AudioAttributes focusAttributes = new AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+            .build();
+
+        audioFocusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+            .setAudioAttributes(focusAttributes)
+            .setAcceptsDelayedFocusGain(false)
+            .setWillPauseWhenDucked(true)
+            .setOnAudioFocusChangeListener(change -> {
+                if (change == AudioManager.AUDIOFOCUS_LOSS ||
+                    change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
+                    runOnUiThread(() -> {
+                        if (readingActive) {
+                            stopReading();
+                            status.setText("หยุดชั่วคราว • มีเสียงจากแอปอื่น");
+                        }
+                    });
+                }
+            })
+            .build();
+    }
+
+    private boolean requestStableAudioFocus() {
+        if (audioManager == null || audioFocusRequest == null) return true;
+        int result = audioManager.requestAudioFocus(audioFocusRequest);
+        hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
+        return hasAudioFocus;
+    }
+
+    private void releaseAudioFocus() {
+        if (hasAudioFocus && audioManager != null && audioFocusRequest != null) {
+            audioManager.abandonAudioFocusRequest(audioFocusRequest);
+        }
+        hasAudioFocus = false;
+    }
+
+    private void stopReading() {
+        readingActive = false;
+        if (tts != null) tts.stop();
+        releaseAudioFocus();
     }
 
     private void startSaving() {
@@ -590,7 +662,9 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     }
 
     @Override protected void onDestroy() {
-        if (tts != null) { tts.stop(); tts.shutdown(); }
+        stopReading();
+        if (tts != null) tts.shutdown();
+        releaseAudioFocus();
         super.onDestroy();
     }
 }
