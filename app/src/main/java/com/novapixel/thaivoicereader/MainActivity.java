@@ -14,6 +14,7 @@ import android.speech.tts.UtteranceProgressListener;
 import android.speech.tts.Voice;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.*;
 import java.io.File;
 import java.io.FileInputStream;
@@ -230,6 +231,26 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         });
     }
 
+    private ArrayAdapter<String> voiceAdapter(List<String> labels) {
+        return new ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, labels) {
+            @Override public View getView(int position, View convertView, ViewGroup parent) {
+                TextView v = (TextView) super.getView(position, convertView, parent);
+                v.setTextColor(Color.WHITE);
+                v.setTextSize(17);
+                v.setPadding(dp(14), 0, dp(14), 0);
+                return v;
+            }
+            @Override public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                TextView v = (TextView) super.getDropDownView(position, convertView, parent);
+                v.setTextColor(Color.rgb(24,31,52));
+                v.setTextSize(17);
+                v.setBackgroundColor(Color.WHITE);
+                v.setPadding(dp(14), dp(14), dp(14), dp(14));
+                return v;
+            }
+        };
+    }
+
     private void loadVoices() {
         thaiVoices.clear();
         List<String> labels = new ArrayList<>();
@@ -254,8 +275,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         }
 
         if (labels.isEmpty()) labels.add("เสียงภาษาไทยเริ่มต้น");
-        voiceSpinner.setAdapter(new ArrayAdapter<>(this,
-            android.R.layout.simple_spinner_dropdown_item, labels));
+        voiceSpinner.setAdapter(voiceAdapter(labels));
         voiceSpinner.setSelection(0);
         if (!thaiVoices.isEmpty()) tts.setVoice(thaiVoices.get(0));
     }
