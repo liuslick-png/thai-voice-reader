@@ -17,7 +17,6 @@ import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.speech.tts.Voice;
 import android.text.Editable;
-import android.text.InputFilter;
 import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -47,8 +46,8 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     private Voice phoneDefaultVoice;
     private final List<Voice> thaiVoices = new ArrayList<>();
     private final List<String> chunks = new ArrayList<>();
-    private static final int MAX_INPUT_CHARS = 2000;
-    private static final int READING_CHUNK_SIZE = 2000;
+    private static final int MAX_INPUT_CHARS = 950;
+    private static final int READING_CHUNK_SIZE = 950;
     private int chunkIndex = 0;
     private long readingSession = 0L;
     private int nextChunkToQueue = 0;
@@ -146,7 +145,6 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         input.setTextSize(18);
         input.setTextColor(Color.WHITE);
         input.setHintTextColor(Color.rgb(143,155,184));
-        input.setFilters(new InputFilter[]{new InputFilter.LengthFilter(MAX_INPUT_CHARS)});
         input.setBackground(panelBackground());
         input.setElevation(dp(10));
         input.setPadding(dp(18),dp(14),dp(18),dp(14));
@@ -162,14 +160,40 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         });
         root.addView(input, new LinearLayout.LayoutParams(-1, dp(156)));
 
-        charCounter = text("0 / 2000", 12, Color.rgb(143,155,184));
+        LinearLayout timeline = new LinearLayout(this);
+        timeline.setOrientation(LinearLayout.HORIZONTAL);
+        timeline.setGravity(Gravity.CENTER_VERTICAL);
+        timeline.setBackground(panelBackground());
+        timeline.setPadding(dp(8), dp(1), dp(8), dp(1));
+        readingProgress = new ProgressBar(
+            this, null, android.R.attr.progressBarStyleHorizontal);
+        readingProgress.setMax(1000);
+        readingProgress.setProgress(0);
+        timeValue = text("00:00", 11, Color.rgb(202,210,230));
+        timeValue.setGravity(Gravity.CENTER);
+        timeValue.setPadding(0, 0, 0, 0);
+        timeline.addView(timeValue, new LinearLayout.LayoutParams(dp(48), dp(22)));
+        LinearLayout.LayoutParams progressParams =
+            new LinearLayout.LayoutParams(0, dp(6), 1);
+        progressParams.setMargins(dp(6), 0, dp(3), 0);
+        timeline.addView(readingProgress, progressParams);
+        LinearLayout.LayoutParams timelineParams =
+            new LinearLayout.LayoutParams(-1, dp(26));
+        timelineParams.setMargins(0, dp(3), 0, 0);
+        root.addView(timeline, timelineParams);
+
+        charCounter = text("0 / 950", 11, Color.rgb(143,155,184));
         charCounter.setGravity(Gravity.END);
         charCounter.setPadding(0, 0, dp(6), 0);
         root.addView(charCounter, new LinearLayout.LayoutParams(-1, dp(24)));
         input.addTextChangedListener(new TextWatcher() {
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-                charCounter.setText(s.length() + " / " + MAX_INPUT_CHARS);
+                int length = s.length();
+                charCounter.setText(length + " / " + MAX_INPUT_CHARS);
+                charCounter.setTextColor(length > MAX_INPUT_CHARS
+                    ? Color.rgb(255,105,120)
+                    : Color.rgb(143,155,184));
             }
             public void afterTextChanged(Editable s) {}
         });
@@ -257,24 +281,6 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
             }
             updateLabels();
         });
-
-        LinearLayout timeline = new LinearLayout(this);
-        timeline.setOrientation(LinearLayout.HORIZONTAL);
-        timeline.setGravity(Gravity.CENTER_VERTICAL);
-        timeline.setBackground(panelBackground());
-        timeline.setPadding(dp(10), dp(4), dp(10), dp(4));
-        readingProgress = new ProgressBar(
-            this, null, android.R.attr.progressBarStyleHorizontal);
-        readingProgress.setMax(1000);
-        readingProgress.setProgress(0);
-        timeValue = text("00:00", 13, Color.rgb(202,210,230));
-        timeValue.setGravity(Gravity.CENTER);
-        timeline.addView(timeValue, new LinearLayout.LayoutParams(dp(58), dp(34)));
-        LinearLayout.LayoutParams progressParams =
-            new LinearLayout.LayoutParams(0, dp(20), 1);
-        progressParams.setMargins(dp(8), 0, dp(4), 0);
-        timeline.addView(readingProgress, progressParams);
-        root.addView(timeline, new LinearLayout.LayoutParams(-1, dp(42)));
 
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -523,7 +529,16 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     }
 
     private boolean prepareText() {
-        String value = normalizeForStableReading(input.getText().toString());
+        String rawValue = input.getText().toString();
+        if (rawValue.length() > MAX_INPUT_CHARS) {
+            Toast.makeText(
+                this,
+                "ข้อความเกิน 950 ตัวอักษร กรุณาลบส่วนที่เกินก่อน",
+                Toast.LENGTH_LONG).show();
+            status.setText("เกินกำหนด • ลบให้เหลือไม่เกิน 950 ตัวอักษร");
+            return false;
+        }
+        String value = normalizeForStableReading(rawValue);
         if (value.isEmpty()) {
             Toast.makeText(this, "กรุณาใส่ข้อความก่อน", Toast.LENGTH_SHORT).show();
             return false;
@@ -680,6 +695,10 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     }
 
     private void stopReadingTimer(boolean reset) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            timerHandler.post(() -> stopReadingTimer(reset));
+            return;
+        }
         timerHandler.removeCallbacks(timerTick);
         if (readingStartedAt != 0L && !reset) {
             timeValue.setText(formatElapsed(
