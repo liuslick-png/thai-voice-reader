@@ -24,6 +24,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     private TextToSpeech tts;
     private EditText input;
     private Spinner voiceSpinner;
+    private Switch dhammaMode;
     private SeekBar speedBar, pitchBar, volumeBar;
     private TextView speedValue, pitchValue, volumeValue, status;
     private final List<Voice> thaiVoices = new ArrayList<>();
@@ -92,6 +93,13 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         voiceSpinner.setBackgroundColor(Color.WHITE);
         root.addView(voiceSpinner, new LinearLayout.LayoutParams(-1, dp(58)));
 
+        dhammaMode = new Switch(this);
+        dhammaMode.setText("โหมดพระบรรยายธรรมะ — ช้า ทุ้ม และสงบ");
+        dhammaMode.setTextSize(17);
+        dhammaMode.setTextColor(Color.rgb(28,31,50));
+        dhammaMode.setPadding(0, dp(12), 0, dp(12));
+        root.addView(dhammaMode, new LinearLayout.LayoutParams(-1, dp(64)));
+
         speedValue = text("", 15, Color.DKGRAY);
         root.addView(speedValue); speedBar = slider(root, 25, 200, 100);
         pitchValue = text("", 15, Color.DKGRAY);
@@ -108,6 +116,18 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         speedBar.setOnSeekBarChangeListener(listener);
         pitchBar.setOnSeekBarChangeListener(listener);
         volumeBar.setOnSeekBarChangeListener(listener);
+        dhammaMode.setOnCheckedChangeListener((buttonView, checked) -> {
+            if (checked) {
+                speedBar.setProgress(78);
+                pitchBar.setProgress(68);
+                status.setText("เปิดโหมดธรรมะ: พูดช้าและโทนทุ้ม");
+            } else {
+                speedBar.setProgress(100);
+                pitchBar.setProgress(100);
+                status.setText("ปิดโหมดธรรมะ");
+            }
+            updateLabels();
+        });
 
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -138,7 +158,8 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
 
     private void updateLabels() {
         if (speedValue == null) return;
-        speedValue.setText("ความเร็ว: " + speedBar.getProgress() + "%");
+        speedValue.setText("ความเร็ว: " + speedBar.getProgress() + "%" +
+            (dhammaMode != null && dhammaMode.isChecked() ? "  •  โหมดธรรมะ" : ""));
         pitchValue.setText("ระดับเสียงสูง–ต่ำ: " + pitchBar.getProgress() + "%");
         volumeValue.setText("ความดัง: " + volumeBar.getProgress() + "%");
     }
