@@ -42,6 +42,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     private static final int READING_CHUNK_SIZE = 1200;
     private int chunkIndex = 0;
     private long readingSession = 0L;
+    private int nextChunkToQueue = 0;
     private boolean readingActive = false;
     private boolean saving = false;
     private File tempAudio;
@@ -407,6 +408,8 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
                                 readingActive = false;
                                 releaseAudioFocus();
                                 runOnUiThread(() -> status.setText("อ่านครบทุกช่วงแล้ว • Stable"));
+                            } else if (session == readingSession) {
+                                queueNextStableChunk();
                             }
                         } catch (NumberFormatException ignored) {}
                     }
@@ -571,7 +574,9 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
 
     private Bundle params() {
         Bundle b = new Bundle();
-        b.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volumeBar.getProgress()/100f);
+        float requested = volumeBar.getProgress() / 100f;
+        float safeVolume = Math.min(requested, 0.92f);
+        b.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, safeVolume);
         return b;
     }
 
@@ -591,19 +596,36 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
             ? "กำลังเริ่มอ่าน..."
             : "แบ่งข้อความอัตโนมัติเป็น " + chunks.size() + " ช่วง");
         readingSession = System.currentTimeMillis();
-        int total = chunks.size();
-        for (int i = 0; i < total; i++) {
-            String utteranceId = "long_" + readingSession + "_" + i + "_" + total;
-            int queueMode = (i == 0) ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD;
-            int result = tts.speak(chunks.get(i), queueMode, params(), utteranceId);
-            if (result != TextToSpeech.SUCCESS) {
-                readingActive = false;
-                tts.stop();
-                releaseAudioFocus();
-                status.setText("จัดคิวอ่านข้อความไม่สำเร็จ");
-                return;
-            }
+        nextChunkToQueue = 0;
+
+        if (!queueNextStableChunk(TextToSpeech.QUEUE_FLUSH)) return;
+        queueNextStableChunk(TextToSpeech.QUEUE_ADD);
+    }
+
+    private synchronized void queueNextStableChunk() {
+        queueNextStableChunk(TextToSpeech.QUEUE_ADD);
+    }
+
+    private synchronized boolean queueNextStableChunk(int queueMode) {
+        if (!readingActive || nextChunkToQueue >= chunks.size()) return true;
+
+        int index = nextChunkToQueue++;
+        String utteranceId =
+            "long_" + readingSession + "_" + index + "_" + chunks.size();
+        int result = tts.speak(
+            chunks.get(index),
+            queueMode,
+            params(),
+            utteranceId);
+
+        if (result != TextToSpeech.SUCCESS) {
+            readingActive = false;
+            tts.stop();
+            releaseAudioFocus();
+            runOnUiThread(() -> status.setText("จัดคิวอ่านข้อความไม่สำเร็จ"));
+            return false;
         }
+        return true;
     }
 
     private void createAudioFocusRequest() {
