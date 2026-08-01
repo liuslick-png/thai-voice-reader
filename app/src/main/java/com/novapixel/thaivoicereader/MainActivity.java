@@ -144,9 +144,12 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
 
         LinearLayout editActions = new LinearLayout(this);
         editActions.setOrientation(LinearLayout.HORIZONTAL);
-        Button clearText = button("✕  ลบข้อความ", Color.rgb(164,63,76));
-        Button pasteText = button("▣  วางข้อความ", Color.rgb(44,105,157));
+        Button clearText = button("✕  ลบ", Color.rgb(164,63,76));
+        Button pasteText = button("▣  วาง", Color.rgb(44,105,157));
         Button undoButton = button("↶  ย้อนกลับ", Color.rgb(118,88,45));
+        clearText.setTextSize(14);
+        pasteText.setTextSize(14);
+        undoButton.setTextSize(14);
         editActions.addView(clearText);
         editActions.addView(pasteText);
         editActions.addView(undoButton);
