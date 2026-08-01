@@ -36,6 +36,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     private final List<String> chunks = new ArrayList<>();
     private static final int READING_CHUNK_SIZE = 1200;
     private int chunkIndex = 0;
+    private long readingSession = 0L;
     private boolean readingActive = false;
     private boolean saving = false;
     private File tempAudio;
@@ -255,8 +256,18 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
                 runOnUiThread(() -> {
                     if (saving) {
                         status.setText("กำลังสร้างไฟล์เสียง...");
-                    } else if (readingActive) {
-                        status.setText("กำลังอ่านช่วงที่ " + (chunkIndex + 1) + " จาก " + chunks.size());
+                    } else if (readingActive && id != null && id.startsWith("long_")) {
+                        String[] parts = id.split("_");
+                        if (parts.length == 4) {
+                            try {
+                                int current = Integer.parseInt(parts[2]) + 1;
+                                int total = Integer.parseInt(parts[3]);
+                                chunkIndex = current - 1;
+                                status.setText("กำลังอ่านช่วงที่ " + current + " จาก " + total);
+                            } catch (NumberFormatException ignored) {
+                                status.setText("กำลังอ่านข้อความยาว...");
+                            }
+                        }
                     }
                 });
             }
@@ -268,13 +279,18 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
             public void onDone(String id) {
                 if (saving) {
                     finishSave();
-                } else if (readingActive) {
-                    chunkIndex++;
-                    if (chunkIndex < chunks.size()) {
-                        speakNext();
-                    } else {
-                        readingActive = false;
-                        runOnUiThread(() -> status.setText("อ่านครบทุกช่วงแล้ว"));
+                } else if (readingActive && id != null && id.startsWith("long_")) {
+                    String[] parts = id.split("_");
+                    if (parts.length == 4) {
+                        try {
+                            long session = Long.parseLong(parts[1]);
+                            int current = Integer.parseInt(parts[2]);
+                            int total = Integer.parseInt(parts[3]);
+                            if (session == readingSession && current == total - 1) {
+                                readingActive = false;
+                                runOnUiThread(() -> status.setText("อ่านครบทุกช่วงแล้ว"));
+                            }
+                        } catch (NumberFormatException ignored) {}
                     }
                 }
             }
@@ -422,19 +438,18 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         status.setText(chunks.size() == 1
             ? "กำลังเริ่มอ่าน..."
             : "แบ่งข้อความอัตโนมัติเป็น " + chunks.size() + " ช่วง");
-        speakNext();
-    }
-
-    private void speakNext() {
-        if (!readingActive || chunkIndex < 0 || chunkIndex >= chunks.size()) return;
-        int result = tts.speak(
-            chunks.get(chunkIndex),
-            TextToSpeech.QUEUE_FLUSH,
-            params(),
-            "speak_" + chunkIndex + "_" + System.currentTimeMillis());
-        if (result != TextToSpeech.SUCCESS) {
-            readingActive = false;
-            runOnUiThread(() -> status.setText("เริ่มอ่านช่วงถัดไปไม่สำเร็จ"));
+        readingSession = System.currentTimeMillis();
+        int total = chunks.size();
+        for (int i = 0; i < total; i++) {
+            String utteranceId = "long_" + readingSession + "_" + i + "_" + total;
+            int queueMode = (i == 0) ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD;
+            int result = tts.speak(chunks.get(i), queueMode, params(), utteranceId);
+            if (result != TextToSpeech.SUCCESS) {
+                readingActive = false;
+                tts.stop();
+                status.setText("จัดคิวอ่านข้อความไม่สำเร็จ");
+                return;
+            }
         }
     }
 
