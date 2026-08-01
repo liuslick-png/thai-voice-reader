@@ -13,8 +13,10 @@ import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.speech.tts.Voice;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.text.method.ScrollingMovementMethod;
 import android.widget.*;
 import java.io.File;
 import java.io.FileInputStream;
@@ -26,7 +28,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     private TextToSpeech tts;
     private EditText input;
     private Spinner voiceSpinner;
-    private Switch dhammaMode;
+    private Switch longTextMode, dhammaMode;
     private SeekBar speedBar, pitchBar, volumeBar;
     private TextView speedValue, pitchValue, volumeValue, status;
     private Voice phoneDefaultVoice;
@@ -113,14 +115,40 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         input = new EditText(this);
         input.setHint("พิมพ์หรือวางข้อความภาษาไทยที่นี่...");
         input.setGravity(Gravity.TOP);
-        input.setMinLines(7);
+        input.setSingleLine(false);
+        input.setMinLines(4);
+        input.setMaxLines(4);
+        input.setVerticalScrollBarEnabled(true);
+        input.setScrollBarStyle(View.SCROLLBARS_INSIDE_INSET);
+        input.setMovementMethod(new ScrollingMovementMethod());
+        input.setOverScrollMode(View.OVER_SCROLL_ALWAYS);
         input.setTextSize(18);
         input.setTextColor(Color.WHITE);
         input.setHintTextColor(Color.rgb(143,155,184));
         input.setBackground(panelBackground());
         input.setElevation(dp(10));
-        input.setPadding(dp(18),dp(18),dp(18),dp(18));
-        root.addView(input, new LinearLayout.LayoutParams(-1, -2));
+        input.setPadding(dp(18),dp(14),dp(18),dp(14));
+        input.setOnTouchListener((v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_DOWN ||
+                event.getAction() == MotionEvent.ACTION_MOVE) {
+                v.getParent().requestDisallowInterceptTouchEvent(true);
+            } else if (event.getAction() == MotionEvent.ACTION_UP ||
+                       event.getAction() == MotionEvent.ACTION_CANCEL) {
+                v.getParent().requestDisallowInterceptTouchEvent(false);
+            }
+            return false;
+        });
+        root.addView(input, new LinearLayout.LayoutParams(-1, dp(156)));
+
+        longTextMode = new Switch(this);
+        longTextMode.setText("อ่านข้อความยาว — แบ่งช่วงอัตโนมัติ");
+        longTextMode.setTextSize(16);
+        longTextMode.setTextColor(Color.rgb(242,214,145));
+        longTextMode.setChecked(true);
+        longTextMode.setBackground(panelBackground());
+        longTextMode.setPadding(dp(14), dp(10), dp(14), dp(10));
+        longTextMode.setElevation(dp(7));
+        root.addView(longTextMode, new LinearLayout.LayoutParams(-1, dp(60)));
 
         root.addView(text("เลือกเสียงภาษาไทยที่ติดตั้งในเครื่อง", 17, Color.rgb(242,214,145)));
         voiceSpinner = new Spinner(this);
@@ -316,7 +344,19 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
             return false;
         }
         chunks.clear();
-        splitLongText(value);
+        if (longTextMode != null && longTextMode.isChecked()) {
+            splitLongText(value);
+        } else {
+            int engineLimit = TextToSpeech.getMaxSpeechInputLength() - 100;
+            if (value.length() > engineLimit) {
+                Toast.makeText(
+                    this,
+                    "ข้อความยาวเกินไป กรุณาเปิดโหมดแบ่งช่วงอัตโนมัติ",
+                    Toast.LENGTH_LONG).show();
+                return false;
+            }
+            chunks.add(value);
+        }
         chunkIndex = 0;
         return !chunks.isEmpty();
     }
