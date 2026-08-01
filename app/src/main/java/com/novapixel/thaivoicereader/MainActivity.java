@@ -289,7 +289,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
 
         Button minus = new Button(this);
         minus.setText("−");
-        minus.setTextSize(24);
+        minus.setTextSize(19);
         minus.setTextColor(Color.WHITE);
         minus.setBackground(raisedBackground(Color.rgb(80,95,124)));
         minus.setAllCaps(false);
@@ -297,21 +297,21 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
 
         Button plus = new Button(this);
         plus.setText("+");
-        plus.setTextSize(24);
+        plus.setTextSize(19);
         plus.setTextColor(Color.WHITE);
         plus.setBackground(raisedBackground(Color.rgb(91,75,219)));
         plus.setAllCaps(false);
         plus.setPadding(0, 0, 0, 0);
 
         valueLabel.setGravity(Gravity.CENTER);
-        valueLabel.setTextSize(15);
-        row.addView(minus, new LinearLayout.LayoutParams(dp(52), dp(46)));
-        row.addView(valueLabel, new LinearLayout.LayoutParams(0, dp(46), 1));
-        row.addView(plus, new LinearLayout.LayoutParams(dp(52), dp(46)));
+        valueLabel.setTextSize(14);
+        row.addView(minus, new LinearLayout.LayoutParams(dp(38), dp(36)));
+        row.addView(valueLabel, new LinearLayout.LayoutParams(0, dp(36), 1));
+        row.addView(plus, new LinearLayout.LayoutParams(dp(38), dp(36)));
 
         LinearLayout.LayoutParams rowParams =
-            new LinearLayout.LayoutParams(-1, dp(56));
-        rowParams.setMargins(0, dp(4), 0, dp(4));
+            new LinearLayout.LayoutParams(-1, dp(44));
+        rowParams.setMargins(0, dp(3), 0, dp(3));
         root.addView(row, rowParams);
 
         minus.setOnClickListener(v -> {
@@ -327,10 +327,10 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
 
     private void updateLabels() {
         if (speedValue == null) return;
-        speedValue.setText("ความเร็ว: " + speedBar.getProgress() + "%" +
-            (dhammaMode != null && dhammaMode.isChecked() ? "  •  โหมดธรรมะ" : ""));
-        pitchValue.setText("ระดับเสียงสูง–ต่ำ: " + pitchBar.getProgress() + "%");
-        volumeValue.setText("ความดัง: " + volumeBar.getProgress() + "%");
+        speedValue.setText("Speed  " + speedBar.getProgress() + "%" +
+            (dhammaMode != null && dhammaMode.isChecked() ? "  •  Dhamma" : ""));
+        pitchValue.setText("Pitch  " + pitchBar.getProgress() + "%");
+        volumeValue.setText("Volume  " + volumeBar.getProgress() + "%");
     }
 
     @Override public void onInit(int result) {
