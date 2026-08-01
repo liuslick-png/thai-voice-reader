@@ -351,7 +351,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
             status.setText("ยังไม่มีข้อมูลเสียงภาษาไทยในเครื่อง");
         } else {
             loadVoices();
-            status.setText("พร้อมใช้งานแบบออฟไลน์");
+            status.setText("พร้อมใช้งานออฟไลน์ • Stable Reading");
         }
         tts.setAudioAttributes(new AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
