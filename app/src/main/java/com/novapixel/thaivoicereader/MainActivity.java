@@ -33,7 +33,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     private boolean hasAudioFocus = false;
     private EditText input;
     private Spinner voiceSpinner;
-    private Switch longTextMode, dhammaMode;
+    private Switch longTextMode, clearSpeechMode, dhammaMode;
     private SeekBar speedBar, pitchBar, volumeBar;
     private TextView speedValue, pitchValue, volumeValue, status;
     private Voice phoneDefaultVoice;
@@ -196,6 +196,17 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         longTextMode.setPadding(dp(12), dp(4), dp(12), dp(4));
         longTextMode.setElevation(dp(7));
         root.addView(longTextMode, new LinearLayout.LayoutParams(-1, dp(44)));
+
+        clearSpeechMode = new Switch(this);
+        clearSpeechMode.setText("Clear Speech  •  ร / ล");
+        clearSpeechMode.setTextSize(14);
+        clearSpeechMode.setSingleLine(true);
+        clearSpeechMode.setTextColor(Color.rgb(242,214,145));
+        clearSpeechMode.setChecked(true);
+        clearSpeechMode.setBackground(panelBackground());
+        clearSpeechMode.setPadding(dp(12), dp(4), dp(12), dp(4));
+        clearSpeechMode.setElevation(dp(7));
+        root.addView(clearSpeechMode, new LinearLayout.LayoutParams(-1, dp(44)));
 
         root.addView(text("Thai Voice", 15, Color.rgb(242,214,145)));
         voiceSpinner = new Spinner(this);
@@ -462,6 +473,9 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
 
     private boolean prepareText() {
         String value = normalizeForStableReading(input.getText().toString());
+        if (clearSpeechMode != null && clearSpeechMode.isChecked()) {
+            value = applyClearSpeech(value);
+        }
         if (value.isEmpty()) {
             Toast.makeText(this, "กรุณาใส่ข้อความก่อน", Toast.LENGTH_SHORT).show();
             return false;
@@ -493,6 +507,18 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
             .replaceAll(" *\\n *", "\n")
             .replaceAll("\\n{3,}", "\n\n")
             .trim();
+    }
+
+    private String applyClearSpeech(String value) {
+        return value
+            .replace("รอเรือ", "รอ เรือ")
+            .replace("ร เรือ", "รอ เรือ")
+            .replace("ร.เรือ", "รอ เรือ")
+            .replace("ร เรือ", "รอ เรือ")
+            .replace("ลอลิง", "ลอ ลิง")
+            .replace("ล ลิง", "ลอ ลิง")
+            .replace("ล.ลิง", "ลอ ลิง")
+            .replace("ลลิง", "ลอ ลิง");
     }
 
     private void splitLongText(String value) {
