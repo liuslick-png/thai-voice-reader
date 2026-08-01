@@ -208,21 +208,12 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         root.addView(dhammaMode, new LinearLayout.LayoutParams(-1, dp(64)));
 
         speedValue = text("", 15, Color.rgb(202,210,230));
-        root.addView(speedValue); speedBar = slider(root, 25, 200, 100);
+        speedBar = stepper(root, speedValue, 25, 200, 100, 5);
         pitchValue = text("", 15, Color.rgb(202,210,230));
-        root.addView(pitchValue); pitchBar = slider(root, 50, 150, 100);
+        pitchBar = stepper(root, pitchValue, 50, 150, 100, 5);
         volumeValue = text("", 15, Color.rgb(202,210,230));
-        root.addView(volumeValue); volumeBar = slider(root, 0, 100, 100);
+        volumeBar = stepper(root, volumeValue, 0, 100, 100, 5);
         updateLabels();
-
-        SeekBar.OnSeekBarChangeListener listener = new SeekBar.OnSeekBarChangeListener() {
-            public void onProgressChanged(SeekBar s, int p, boolean fromUser) { updateLabels(); }
-            public void onStartTrackingTouch(SeekBar s) {}
-            public void onStopTrackingTouch(SeekBar s) {}
-        };
-        speedBar.setOnSeekBarChangeListener(listener);
-        pitchBar.setOnSeekBarChangeListener(listener);
-        volumeBar.setOnSeekBarChangeListener(listener);
         dhammaMode.setOnCheckedChangeListener((buttonView, checked) -> {
             if (checked) {
                 speedBar.setProgress(82);
@@ -282,11 +273,56 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         status.setText("วางข้อความแล้ว");
     }
 
-    private SeekBar slider(LinearLayout root, int min, int max, int value) {
-        SeekBar b = new SeekBar(this);
-        b.setMin(min); b.setMax(max); b.setProgress(value);
-        root.addView(b, new LinearLayout.LayoutParams(-1, dp(48)));
-        return b;
+    private SeekBar stepper(LinearLayout root, TextView valueLabel,
+                            int min, int max, int value, int step) {
+        SeekBar state = new SeekBar(this);
+        state.setMin(min);
+        state.setMax(max);
+        state.setProgress(value);
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setBackground(panelBackground());
+        row.setElevation(dp(6));
+        row.setPadding(dp(6), dp(4), dp(6), dp(4));
+
+        Button minus = new Button(this);
+        minus.setText("−");
+        minus.setTextSize(24);
+        minus.setTextColor(Color.WHITE);
+        minus.setBackground(raisedBackground(Color.rgb(80,95,124)));
+        minus.setAllCaps(false);
+        minus.setPadding(0, 0, 0, 0);
+
+        Button plus = new Button(this);
+        plus.setText("+");
+        plus.setTextSize(24);
+        plus.setTextColor(Color.WHITE);
+        plus.setBackground(raisedBackground(Color.rgb(91,75,219)));
+        plus.setAllCaps(false);
+        plus.setPadding(0, 0, 0, 0);
+
+        valueLabel.setGravity(Gravity.CENTER);
+        valueLabel.setTextSize(15);
+        row.addView(minus, new LinearLayout.LayoutParams(dp(52), dp(46)));
+        row.addView(valueLabel, new LinearLayout.LayoutParams(0, dp(46), 1));
+        row.addView(plus, new LinearLayout.LayoutParams(dp(52), dp(46)));
+
+        LinearLayout.LayoutParams rowParams =
+            new LinearLayout.LayoutParams(-1, dp(56));
+        rowParams.setMargins(0, dp(4), 0, dp(4));
+        root.addView(row, rowParams);
+
+        minus.setOnClickListener(v -> {
+            state.setProgress(Math.max(state.getMin(), state.getProgress() - step));
+            updateLabels();
+        });
+        plus.setOnClickListener(v -> {
+            state.setProgress(Math.min(state.getMax(), state.getProgress() + step));
+            updateLabels();
+        });
+        return state;
     }
 
     private void updateLabels() {
