@@ -27,6 +27,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     private Switch dhammaMode;
     private SeekBar speedBar, pitchBar, volumeBar;
     private TextView speedValue, pitchValue, volumeValue, status;
+    private Voice phoneDefaultVoice;
     private final List<Voice> thaiVoices = new ArrayList<>();
     private final List<String> chunks = new ArrayList<>();
     private int chunkIndex = 0;
@@ -118,9 +119,9 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         volumeBar.setOnSeekBarChangeListener(listener);
         dhammaMode.setOnCheckedChangeListener((buttonView, checked) -> {
             if (checked) {
-                speedBar.setProgress(78);
-                pitchBar.setProgress(68);
-                status.setText("เปิดโหมดธรรมะ: พูดช้าและโทนทุ้ม");
+                speedBar.setProgress(82);
+                pitchBar.setProgress(100);
+                status.setText("เปิดโหมดธรรมะ: ใช้เสียงผู้ชายของโทรศัพท์และพูดช้า");
             } else {
                 speedBar.setProgress(100);
                 pitchBar.setProgress(100);
@@ -169,6 +170,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
             status.setText("เปิดระบบเสียงไม่ได้ กรุณาติดตั้ง Speech Services by Google");
             return;
         }
+        phoneDefaultVoice = tts.getVoice();
         int available = tts.setLanguage(new Locale("th", "TH"));
         if (available < 0) {
             status.setText("ยังไม่มีข้อมูลเสียงภาษาไทยในเครื่อง");
@@ -196,18 +198,31 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     private void loadVoices() {
         thaiVoices.clear();
         List<String> labels = new ArrayList<>();
+
+        if (phoneDefaultVoice != null &&
+            "th".equals(phoneDefaultVoice.getLocale().getLanguage())) {
+            thaiVoices.add(phoneDefaultVoice);
+            labels.add("เสียงเริ่มต้นของโทรศัพท์ — แนะนำ");
+        }
+
         Set<Voice> all = tts.getVoices();
         if (all != null) {
             for (Voice v : all) {
-                if ("th".equals(v.getLocale().getLanguage())) {
+                boolean duplicate = phoneDefaultVoice != null &&
+                    v.getName().equals(phoneDefaultVoice.getName());
+                if ("th".equals(v.getLocale().getLanguage()) && !duplicate) {
                     thaiVoices.add(v);
                     String mode = v.isNetworkConnectionRequired() ? "ออนไลน์" : "ออฟไลน์";
                     labels.add("เสียงไทย " + (labels.size()+1) + " — " + mode);
                 }
             }
         }
+
         if (labels.isEmpty()) labels.add("เสียงภาษาไทยเริ่มต้น");
-        voiceSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, labels));
+        voiceSpinner.setAdapter(new ArrayAdapter<>(this,
+            android.R.layout.simple_spinner_dropdown_item, labels));
+        voiceSpinner.setSelection(0);
+        if (!thaiVoices.isEmpty()) tts.setVoice(thaiVoices.get(0));
     }
 
     private void applySettings() {
