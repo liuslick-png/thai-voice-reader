@@ -46,13 +46,20 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         return v;
     }
 
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
     private Button button(String label, int color) {
         Button b = new Button(this);
         b.setText(label); b.setTextColor(Color.WHITE); b.setTextSize(16);
         b.setBackgroundColor(color);
         b.setAllCaps(false);
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, 58, 1);
-        p.setMargins(5, 5, 5, 5); b.setLayoutParams(p);
+        b.setGravity(Gravity.CENTER);
+        b.setMinHeight(dp(60));
+        b.setPadding(dp(4), 0, dp(4), 0);
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, dp(64), 1);
+        p.setMargins(dp(3), dp(6), dp(3), dp(6)); b.setLayoutParams(p);
         return b;
     }
 
@@ -83,7 +90,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         root.addView(text("เลือกเสียงภาษาไทยที่ติดตั้งในเครื่อง", 17, Color.rgb(28,31,50)));
         voiceSpinner = new Spinner(this);
         voiceSpinner.setBackgroundColor(Color.WHITE);
-        root.addView(voiceSpinner, new LinearLayout.LayoutParams(-1, 58));
+        root.addView(voiceSpinner, new LinearLayout.LayoutParams(-1, dp(58)));
 
         speedValue = text("", 15, Color.DKGRAY);
         root.addView(speedValue); speedBar = slider(root, 25, 200, 100);
@@ -125,7 +132,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     private SeekBar slider(LinearLayout root, int min, int max, int value) {
         SeekBar b = new SeekBar(this);
         b.setMin(min); b.setMax(max); b.setProgress(value);
-        root.addView(b, new LinearLayout.LayoutParams(-1, 48));
+        root.addView(b, new LinearLayout.LayoutParams(-1, dp(48)));
         return b;
     }
 
