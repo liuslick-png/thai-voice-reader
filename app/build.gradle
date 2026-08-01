@@ -14,3 +14,17 @@ android {
         versionName "1.0-test"
     }
 }
+
+tasks.register("generateAppIcon") {
+    doLast {
+        def source = file("$projectDir/icon/app_icon.png.b64")
+        def outputDir = file("$projectDir/src/main/res/drawable-nodpi")
+        outputDir.mkdirs()
+        def output = new File(outputDir, "app_icon.png")
+        output.bytes = Base64.decoder.decode(source.text.trim())
+    }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn("generateAppIcon")
+}
