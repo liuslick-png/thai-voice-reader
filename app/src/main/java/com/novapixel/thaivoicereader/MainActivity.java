@@ -32,7 +32,9 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     private Voice phoneDefaultVoice;
     private final List<Voice> thaiVoices = new ArrayList<>();
     private final List<String> chunks = new ArrayList<>();
+    private static final int READING_CHUNK_SIZE = 1200;
     private int chunkIndex = 0;
+    private boolean readingActive = false;
     private boolean saving = false;
     private File tempAudio;
     private String pendingFileName;
@@ -178,7 +180,10 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
 
         speak.setOnClickListener(v -> startSpeaking());
         stop.setOnClickListener(v -> {
-            saving = false; chunks.clear();
+            readingActive = false;
+            saving = false;
+            chunks.clear();
+            chunkIndex = 0;
             if (tts != null) tts.stop();
             status.setText("หยุดแล้ว");
         });
@@ -218,14 +223,31 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
             .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build());
         tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
-            public void onStart(String id) { runOnUiThread(() -> status.setText(saving ? "กำลังสร้างไฟล์เสียง..." : "กำลังอ่าน...")); }
-            public void onError(String id) { runOnUiThread(() -> status.setText("เกิดข้อผิดพลาดในการสร้างเสียง")); }
+            public void onStart(String id) {
+                runOnUiThread(() -> {
+                    if (saving) {
+                        status.setText("กำลังสร้างไฟล์เสียง...");
+                    } else if (readingActive) {
+                        status.setText("กำลังอ่านช่วงที่ " + (chunkIndex + 1) + " จาก " + chunks.size());
+                    }
+                });
+            }
+            public void onError(String id) {
+                readingActive = false;
+                saving = false;
+                runOnUiThread(() -> status.setText("เกิดข้อผิดพลาดในการสร้างเสียง"));
+            }
             public void onDone(String id) {
-                if (saving) finishSave();
-                else {
+                if (saving) {
+                    finishSave();
+                } else if (readingActive) {
                     chunkIndex++;
-                    if (chunkIndex < chunks.size()) speakNext();
-                    else runOnUiThread(() -> status.setText("อ่านจบแล้ว"));
+                    if (chunkIndex < chunks.size()) {
+                        speakNext();
+                    } else {
+                        readingActive = false;
+                        runOnUiThread(() -> status.setText("อ่านครบทุกช่วงแล้ว"));
+                    }
                 }
             }
         });
@@ -294,19 +316,56 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
             return false;
         }
         chunks.clear();
-        int max = TextToSpeech.getMaxSpeechInputLength() - 100;
-        for (int start = 0; start < value.length();) {
-            int end = Math.min(start + max, value.length());
-            if (end < value.length()) {
-                int breakAt = value.lastIndexOf(' ', end);
-                if (breakAt > start + max / 2) end = breakAt;
-            }
-            chunks.add(value.substring(start, end));
-            start = end;
-            while (start < value.length() && Character.isWhitespace(value.charAt(start))) start++;
-        }
+        splitLongText(value);
         chunkIndex = 0;
-        return true;
+        return !chunks.isEmpty();
+    }
+
+    private void splitLongText(String value) {
+        int engineLimit = Math.max(500, TextToSpeech.getMaxSpeechInputLength() - 100);
+        int chunkLimit = Math.min(READING_CHUNK_SIZE, engineLimit);
+        int start = 0;
+
+        while (start < value.length()) {
+            while (start < value.length() && Character.isWhitespace(value.charAt(start))) start++;
+            if (start >= value.length()) break;
+
+            int hardEnd = Math.min(start + chunkLimit, value.length());
+            int end = hardEnd;
+
+            if (hardEnd < value.length()) {
+                int preferredStart = start + (chunkLimit * 55 / 100);
+                int naturalBreak = findNaturalBreak(value, preferredStart, hardEnd);
+                if (naturalBreak > start) {
+                    end = naturalBreak;
+                } else {
+                    int spaceBreak = findWhitespaceBreak(value, preferredStart, hardEnd);
+                    if (spaceBreak > start) end = spaceBreak;
+                }
+            }
+
+            String part = value.substring(start, end).trim();
+            if (!part.isEmpty()) chunks.add(part);
+            start = end;
+        }
+    }
+
+    private int findNaturalBreak(String value, int from, int to) {
+        for (int i = to - 1; i >= from; i--) {
+            char ch = value.charAt(i);
+            if (ch == '\n' || ch == '.' || ch == '!' || ch == '?' ||
+                ch == 'ฯ' || ch == '。' || ch == '！' || ch == '？') {
+                return i + 1;
+            }
+        }
+        return -1;
+    }
+
+    private int findWhitespaceBreak(String value, int from, int to) {
+        for (int i = to - 1; i >= from; i--) {
+            if (Character.isWhitespace(value.charAt(i))) return i;
+        }
+        return -1;
     }
 
     private Bundle params() {
@@ -317,15 +376,31 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
 
     private void startSpeaking() {
         if (tts == null || !prepareText()) return;
-        saving = false; applySettings(); speakNext();
+        saving = false;
+        readingActive = true;
+        applySettings();
+        status.setText(chunks.size() == 1
+            ? "กำลังเริ่มอ่าน..."
+            : "แบ่งข้อความอัตโนมัติเป็น " + chunks.size() + " ช่วง");
+        speakNext();
     }
 
     private void speakNext() {
-        tts.speak(chunks.get(chunkIndex), TextToSpeech.QUEUE_FLUSH, params(), "speak_" + chunkIndex);
+        if (!readingActive || chunkIndex < 0 || chunkIndex >= chunks.size()) return;
+        int result = tts.speak(
+            chunks.get(chunkIndex),
+            TextToSpeech.QUEUE_FLUSH,
+            params(),
+            "speak_" + chunkIndex + "_" + System.currentTimeMillis());
+        if (result != TextToSpeech.SUCCESS) {
+            readingActive = false;
+            runOnUiThread(() -> status.setText("เริ่มอ่านช่วงถัดไปไม่สำเร็จ"));
+        }
     }
 
     private void startSaving() {
         if (tts == null || !prepareText()) return;
+        readingActive = false;
         if (chunks.size() > 1) {
             Toast.makeText(this, "ข้อความยาวเกินไปสำหรับไฟล์เดียว กรุณาแบ่งข้อความแล้วบันทึกทีละส่วน", Toast.LENGTH_LONG).show();
             return;
