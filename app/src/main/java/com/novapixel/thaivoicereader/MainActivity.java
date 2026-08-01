@@ -569,7 +569,6 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
             return false;
         }
         String value = normalizeForStableReading(rawValue);
-        value = applyThaiPronunciationFix(value);
         if (value.isEmpty()) {
             Toast.makeText(this, "กรุณาใส่ข้อความก่อน", Toast.LENGTH_SHORT).show();
             return false;
@@ -600,26 +599,6 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
             .replaceAll(" *\\n *", "\n")
             .replaceAll("\\n{3,}", "\n\n")
             .trim();
-    }
-
-    private String applyThaiPronunciationFix(String value) {
-        String fixed = value
-            .replace("พระไตรปิฎก", "พระ ไตร ปิดก")
-            .replace("ไตรปิฎก", "ไตร ปิดก")
-            .replace("ปิฎก", "ปิดก")
-            .replace("ธรรมชาติ", "ทำมะชาติ")
-            .replace("ธรรมะ", "ทำมะ")
-            .replace("พระธรรม", "พระ ทำ")
-            .replace("หลักธรรม", "หลัก ทำ")
-            .replace("ของการ", "ของ การ");
-
-        fixed = fixed.replaceAll(
-            "(?<![ก-๙])ธรรม(?![ก-๙])", "ทำ");
-        fixed = fixed.replaceAll(
-            "(?<![ก-๙])คน(?![ก-๙])", "ค็อน");
-        fixed = fixed.replaceAll(
-            "(?<![ก-๙])ชน(?![ก-๙])", "ช็อน");
-        return fixed;
     }
 
     private Bundle params() {
