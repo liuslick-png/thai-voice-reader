@@ -84,15 +84,17 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
 
     private Button button(String label, int color) {
         Button b = new Button(this);
-        b.setText(label); b.setTextColor(Color.WHITE); b.setTextSize(16);
+        b.setText(label); b.setTextColor(Color.WHITE); b.setTextSize(13);
         b.setBackground(raisedBackground(color));
         b.setElevation(dp(10));
         b.setAllCaps(false);
         b.setGravity(Gravity.CENTER);
-        b.setMinHeight(dp(60));
-        b.setPadding(dp(4), 0, dp(4), 0);
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, dp(64), 1);
-        p.setMargins(dp(3), dp(6), dp(3), dp(6)); b.setLayoutParams(p);
+        b.setMinHeight(dp(40));
+        b.setMinimumHeight(dp(40));
+        b.setSingleLine(true);
+        b.setPadding(dp(3), 0, dp(3), 0);
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, dp(42), 1);
+        p.setMargins(dp(3), dp(3), dp(3), dp(3)); b.setLayoutParams(p);
         return b;
     }
 
@@ -144,12 +146,9 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
 
         LinearLayout editActions = new LinearLayout(this);
         editActions.setOrientation(LinearLayout.HORIZONTAL);
-        Button clearText = button("✕  ลบ", Color.rgb(164,63,76));
-        Button pasteText = button("▣  วาง", Color.rgb(44,105,157));
-        Button undoButton = button("↶  ย้อนกลับ", Color.rgb(118,88,45));
-        clearText.setTextSize(14);
-        pasteText.setTextSize(14);
-        undoButton.setTextSize(14);
+        Button clearText = button("Clear", Color.rgb(164,63,76));
+        Button pasteText = button("Paste", Color.rgb(44,105,157));
+        Button undoButton = button("Undo", Color.rgb(118,88,45));
         editActions.addView(clearText);
         editActions.addView(pasteText);
         editActions.addView(undoButton);
@@ -181,31 +180,33 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         });
 
         longTextMode = new Switch(this);
-        longTextMode.setText("อ่านข้อความยาว — แบ่งช่วงอัตโนมัติ");
-        longTextMode.setTextSize(16);
+        longTextMode.setText("Long Text  •  Auto");
+        longTextMode.setTextSize(14);
+        longTextMode.setSingleLine(true);
         longTextMode.setTextColor(Color.rgb(242,214,145));
         longTextMode.setChecked(true);
         longTextMode.setBackground(panelBackground());
         longTextMode.setPadding(dp(14), dp(10), dp(14), dp(10));
         longTextMode.setElevation(dp(7));
-        root.addView(longTextMode, new LinearLayout.LayoutParams(-1, dp(60)));
+        root.addView(longTextMode, new LinearLayout.LayoutParams(-1, dp(44)));
 
-        root.addView(text("เลือกเสียงภาษาไทยที่ติดตั้งในเครื่อง", 17, Color.rgb(242,214,145)));
+        root.addView(text("Thai Voice", 15, Color.rgb(242,214,145)));
         voiceSpinner = new Spinner(this);
         voiceSpinner.setBackground(raisedBackground(Color.rgb(38,49,79)));
         voiceSpinner.setElevation(dp(8));
         voiceSpinner.setPadding(dp(14),0,dp(14),0);
-        root.addView(voiceSpinner, new LinearLayout.LayoutParams(-1, dp(58)));
+        root.addView(voiceSpinner, new LinearLayout.LayoutParams(-1, dp(44)));
 
         dhammaMode = new Switch(this);
-        dhammaMode.setText("โหมดพระบรรยายธรรมะ — ช้า ทุ้ม และสงบ");
-        dhammaMode.setTextSize(17);
+        dhammaMode.setText("Dhamma  •  Slow & Deep");
+        dhammaMode.setTextSize(14);
+        dhammaMode.setSingleLine(true);
         dhammaMode.setTextColor(Color.rgb(242,214,145));
         dhammaMode.setBackground(panelBackground());
         dhammaMode.setPadding(dp(14), dp(12), dp(14), dp(12));
         dhammaMode.setElevation(dp(7));
         dhammaMode.setPadding(0, dp(12), 0, dp(12));
-        root.addView(dhammaMode, new LinearLayout.LayoutParams(-1, dp(64)));
+        root.addView(dhammaMode, new LinearLayout.LayoutParams(-1, dp(44)));
 
         speedValue = text("", 15, Color.rgb(202,210,230));
         speedBar = stepper(root, speedValue, 25, 200, 100, 5);
@@ -229,9 +230,9 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
 
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        Button speak = button("▶  อ่าน", Color.rgb(91,75,219));
-        Button stop = button("■  หยุด", Color.rgb(80,95,124));
-        Button save = button("⬇  บันทึก", Color.rgb(16,148,112));
+        Button speak = button("Read", Color.rgb(91,75,219));
+        Button stop = button("Stop", Color.rgb(80,95,124));
+        Button save = button("Save WAV", Color.rgb(16,148,112));
         row.addView(speak); row.addView(stop); row.addView(save); root.addView(row);
 
         status = text("กำลังเตรียมระบบเสียง...", 15, Color.rgb(202,210,230));
@@ -422,7 +423,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         if (phoneDefaultVoice != null &&
             "th".equals(phoneDefaultVoice.getLocale().getLanguage())) {
             thaiVoices.add(phoneDefaultVoice);
-            labels.add("เสียงเริ่มต้นของโทรศัพท์ — แนะนำ");
+            labels.add("Phone Voice");
         }
 
         Set<Voice> all = tts.getVoices();
@@ -433,12 +434,12 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
                 if ("th".equals(v.getLocale().getLanguage()) && !duplicate) {
                     thaiVoices.add(v);
                     String mode = v.isNetworkConnectionRequired() ? "ออนไลน์" : "ออฟไลน์";
-                    labels.add("เสียงไทย " + (labels.size()+1) + " — " + mode);
+                    labels.add("Thai " + (labels.size()+1) + " • " + mode);
                 }
             }
         }
 
-        if (labels.isEmpty()) labels.add("เสียงภาษาไทยเริ่มต้น");
+        if (labels.isEmpty()) labels.add("Thai Voice");
         voiceSpinner.setAdapter(voiceAdapter(labels));
         voiceSpinner.setSelection(0);
         if (!thaiVoices.isEmpty()) tts.setVoice(thaiVoices.get(0));
