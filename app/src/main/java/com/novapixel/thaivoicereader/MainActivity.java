@@ -27,6 +27,7 @@ import android.widget.*;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.OutputStream;
+import java.text.Normalizer;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -568,6 +569,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
             return false;
         }
         String value = normalizeForStableReading(rawValue);
+        value = applyThaiPronunciationFix(value);
         if (value.isEmpty()) {
             Toast.makeText(this, "กรุณาใส่ข้อความก่อน", Toast.LENGTH_SHORT).show();
             return false;
@@ -588,13 +590,36 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
 
     private String normalizeForStableReading(String value) {
         if (value == null) return "";
-        return value
+        String normalized = Normalizer.normalize(value, Normalizer.Form.NFC);
+        return normalized
+            .replaceAll("[\\u200B\\u200C\\u200D\\u2060\\uFEFF\\u00AD]", "")
+            .replaceAll("[\\u202A-\\u202E\\u2066-\\u2069]", "")
             .replace("\r\n", "\n")
             .replace('\r', '\n')
             .replaceAll("[\\t\\x0B\\f ]+", " ")
             .replaceAll(" *\\n *", "\n")
             .replaceAll("\\n{3,}", "\n\n")
             .trim();
+    }
+
+    private String applyThaiPronunciationFix(String value) {
+        String fixed = value
+            .replace("พระไตรปิฎก", "พระ ไตร ปิดก")
+            .replace("ไตรปิฎก", "ไตร ปิดก")
+            .replace("ปิฎก", "ปิดก")
+            .replace("ธรรมชาติ", "ทำมะชาติ")
+            .replace("ธรรมะ", "ทำมะ")
+            .replace("พระธรรม", "พระ ทำ")
+            .replace("หลักธรรม", "หลัก ทำ")
+            .replace("ของการ", "ของ การ");
+
+        fixed = fixed.replaceAll(
+            "(?<![ก-๙])ธรรม(?![ก-๙])", "ทำ");
+        fixed = fixed.replaceAll(
+            "(?<![ก-๙])คน(?![ก-๙])", "ค็อน");
+        fixed = fixed.replaceAll(
+            "(?<![ก-๙])ชน(?![ก-๙])", "ช็อน");
+        return fixed;
     }
 
     private Bundle params() {
