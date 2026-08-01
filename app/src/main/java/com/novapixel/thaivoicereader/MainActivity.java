@@ -41,6 +41,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     private boolean saving = false;
     private File tempAudio;
     private String pendingFileName;
+    private String undoText = null;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -141,6 +142,41 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         });
         root.addView(input, new LinearLayout.LayoutParams(-1, dp(156)));
 
+        LinearLayout editActions = new LinearLayout(this);
+        editActions.setOrientation(LinearLayout.HORIZONTAL);
+        Button clearText = button("✕  ลบข้อความ", Color.rgb(164,63,76));
+        Button pasteText = button("▣  วางข้อความ", Color.rgb(44,105,157));
+        Button undoButton = button("↶  ย้อนกลับ", Color.rgb(118,88,45));
+        editActions.addView(clearText);
+        editActions.addView(pasteText);
+        editActions.addView(undoButton);
+        root.addView(editActions);
+
+        clearText.setOnClickListener(v -> {
+            String current = input.getText().toString();
+            if (current.isEmpty()) {
+                Toast.makeText(this, "ยังไม่มีข้อความให้ลบ", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            undoText = current;
+            input.setText("");
+            status.setText("ลบข้อความแล้ว — กดย้อนกลับเพื่อกู้คืน");
+        });
+
+        pasteText.setOnClickListener(v -> pasteFromClipboard());
+
+        undoButton.setOnClickListener(v -> {
+            if (undoText == null) {
+                Toast.makeText(this, "ยังไม่มีข้อความสำหรับย้อนกลับ", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            String current = input.getText().toString();
+            input.setText(undoText);
+            input.setSelection(input.getText().length());
+            undoText = current;
+            status.setText("ย้อนกลับข้อความแล้ว");
+        });
+
         longTextMode = new Switch(this);
         longTextMode.setText("อ่านข้อความยาว — แบ่งช่วงอัตโนมัติ");
         longTextMode.setTextSize(16);
@@ -218,6 +254,29 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         });
         save.setOnClickListener(v -> startSaving());
         setContentView(scroll);
+    }
+
+    private void pasteFromClipboard() {
+        android.content.ClipboardManager clipboard =
+            (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        if (clipboard == null || !clipboard.hasPrimaryClip() ||
+            clipboard.getPrimaryClip() == null ||
+            clipboard.getPrimaryClip().getItemCount() == 0) {
+            Toast.makeText(this, "ไม่มีข้อความอยู่ในคลิปบอร์ด", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        CharSequence pasted = clipboard.getPrimaryClip()
+            .getItemAt(0).coerceToText(this);
+        if (pasted == null || pasted.toString().trim().isEmpty()) {
+            Toast.makeText(this, "คลิปบอร์ดไม่มีข้อความ", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        undoText = input.getText().toString();
+        input.setText(pasted.toString());
+        input.setSelection(input.getText().length());
+        status.setText("วางข้อความแล้ว");
     }
 
     private SeekBar slider(LinearLayout root, int min, int max, int value) {
