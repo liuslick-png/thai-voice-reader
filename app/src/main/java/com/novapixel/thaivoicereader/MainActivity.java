@@ -514,10 +514,11 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
             .replace("รอเรือ", "รอ เรือ")
             .replace("ร เรือ", "รอ เรือ")
             .replace("ร.เรือ", "รอ เรือ")
-            .replace("ร เรือ", "รอ เรือ")
+            .replace("ร. เรือ", "รอ เรือ")
             .replace("ลอลิง", "ลอ ลิง")
             .replace("ล ลิง", "ลอ ลิง")
             .replace("ล.ลิง", "ลอ ลิง")
+            .replace("ล. ลิง", "ลอ ลิง")
             .replace("ลลิง", "ลอ ลิง");
     }
 
