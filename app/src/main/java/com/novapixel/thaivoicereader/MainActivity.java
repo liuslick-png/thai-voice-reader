@@ -10,10 +10,15 @@ import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.MediaStore;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.speech.tts.Voice;
+import android.text.Editable;
+import android.text.InputFilter;
+import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -33,13 +38,17 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     private boolean hasAudioFocus = false;
     private EditText input;
     private Spinner voiceSpinner;
-    private Switch longTextMode, clearSpeechMode, dhammaMode;
+    private Switch longTextMode, dhammaMode;
     private SeekBar speedBar, pitchBar, volumeBar;
-    private TextView speedValue, pitchValue, volumeValue, status;
+    private TextView speedValue, pitchValue, volumeValue, charCounter, timeValue, status;
+    private ProgressBar readingProgress;
+    private final Handler timerHandler = new Handler(Looper.getMainLooper());
+    private long readingStartedAt = 0L;
     private Voice phoneDefaultVoice;
     private final List<Voice> thaiVoices = new ArrayList<>();
     private final List<String> chunks = new ArrayList<>();
-    private static final int READING_CHUNK_SIZE = 1200;
+    private static final int MAX_INPUT_CHARS = 2000;
+    private static final int READING_CHUNK_SIZE = 2000;
     private int chunkIndex = 0;
     private long readingSession = 0L;
     private int nextChunkToQueue = 0;
@@ -137,6 +146,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         input.setTextSize(18);
         input.setTextColor(Color.WHITE);
         input.setHintTextColor(Color.rgb(143,155,184));
+        input.setFilters(new InputFilter[]{new InputFilter.LengthFilter(MAX_INPUT_CHARS)});
         input.setBackground(panelBackground());
         input.setElevation(dp(10));
         input.setPadding(dp(18),dp(14),dp(18),dp(14));
@@ -151,6 +161,18 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
             return false;
         });
         root.addView(input, new LinearLayout.LayoutParams(-1, dp(156)));
+
+        charCounter = text("0 / 2000", 12, Color.rgb(143,155,184));
+        charCounter.setGravity(Gravity.END);
+        charCounter.setPadding(0, 0, dp(6), 0);
+        root.addView(charCounter, new LinearLayout.LayoutParams(-1, dp(24)));
+        input.addTextChangedListener(new TextWatcher() {
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                charCounter.setText(s.length() + " / " + MAX_INPUT_CHARS);
+            }
+            public void afterTextChanged(Editable s) {}
+        });
 
         LinearLayout editActions = new LinearLayout(this);
         editActions.setOrientation(LinearLayout.HORIZONTAL);
@@ -198,17 +220,6 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         longTextMode.setElevation(dp(7));
         root.addView(longTextMode, new LinearLayout.LayoutParams(-1, dp(44)));
 
-        clearSpeechMode = new Switch(this);
-        clearSpeechMode.setText("Clear Speech  •  ร / ล");
-        clearSpeechMode.setTextSize(14);
-        clearSpeechMode.setSingleLine(true);
-        clearSpeechMode.setTextColor(Color.rgb(242,214,145));
-        clearSpeechMode.setChecked(true);
-        clearSpeechMode.setBackground(panelBackground());
-        clearSpeechMode.setPadding(dp(12), dp(4), dp(12), dp(4));
-        clearSpeechMode.setElevation(dp(7));
-        root.addView(clearSpeechMode, new LinearLayout.LayoutParams(-1, dp(44)));
-
         root.addView(text("Thai Voice", 15, Color.rgb(242,214,145)));
         voiceSpinner = new Spinner(this);
         voiceSpinner.setBackground(raisedBackground(Color.rgb(38,49,79)));
@@ -246,6 +257,24 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
             }
             updateLabels();
         });
+
+        LinearLayout timeline = new LinearLayout(this);
+        timeline.setOrientation(LinearLayout.HORIZONTAL);
+        timeline.setGravity(Gravity.CENTER_VERTICAL);
+        timeline.setBackground(panelBackground());
+        timeline.setPadding(dp(10), dp(4), dp(10), dp(4));
+        readingProgress = new ProgressBar(
+            this, null, android.R.attr.progressBarStyleHorizontal);
+        readingProgress.setMax(1000);
+        readingProgress.setProgress(0);
+        timeValue = text("00:00", 13, Color.rgb(202,210,230));
+        timeValue.setGravity(Gravity.CENTER);
+        timeline.addView(timeValue, new LinearLayout.LayoutParams(dp(58), dp(34)));
+        LinearLayout.LayoutParams progressParams =
+            new LinearLayout.LayoutParams(0, dp(20), 1);
+        progressParams.setMargins(dp(8), 0, dp(4), 0);
+        timeline.addView(readingProgress, progressParams);
+        root.addView(timeline, new LinearLayout.LayoutParams(-1, dp(42)));
 
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -380,6 +409,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
                                 int current = Integer.parseInt(parts[2]) + 1;
                                 int total = Integer.parseInt(parts[3]);
                                 chunkIndex = current - 1;
+                                updateReadingProgress(current - 1, 0);
                                 status.setText("กำลังอ่านช่วงที่ " + current + " จาก " + total);
                             } catch (NumberFormatException ignored) {
                                 status.setText("กำลังอ่านข้อความยาว...");
@@ -388,9 +418,23 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
                     }
                 });
             }
+            @Override public void onRangeStart(
+                String id, int start, int end, int frame) {
+                if (readingActive && id != null && id.startsWith("long_")) {
+                    String[] parts = id.split("_");
+                    if (parts.length == 4) {
+                        try {
+                            int currentChunk = Integer.parseInt(parts[2]);
+                            runOnUiThread(() ->
+                                updateReadingProgress(currentChunk, end));
+                        } catch (NumberFormatException ignored) {}
+                    }
+                }
+            }
             public void onError(String id) {
                 readingActive = false;
                 saving = false;
+                stopReadingTimer(false);
                 releaseAudioFocus();
                 runOnUiThread(() -> status.setText("เกิดข้อผิดพลาดในการสร้างเสียง"));
             }
@@ -407,7 +451,11 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
                             if (session == readingSession && current == total - 1) {
                                 readingActive = false;
                                 releaseAudioFocus();
-                                runOnUiThread(() -> status.setText("อ่านครบทุกช่วงแล้ว • Stable"));
+                                runOnUiThread(() -> {
+                                    readingProgress.setProgress(1000);
+                                    stopReadingTimer(false);
+                                    status.setText("อ่านครบทุกช่วงแล้ว • Stable");
+                                });
                             } else if (session == readingSession) {
                                 queueNextStableChunk();
                             }
@@ -476,9 +524,6 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
 
     private boolean prepareText() {
         String value = normalizeForStableReading(input.getText().toString());
-        if (clearSpeechMode != null && clearSpeechMode.isChecked()) {
-            value = applyClearSpeech(value);
-        }
         if (value.isEmpty()) {
             Toast.makeText(this, "กรุณาใส่ข้อความก่อน", Toast.LENGTH_SHORT).show();
             return false;
@@ -510,19 +555,6 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
             .replaceAll(" *\\n *", "\n")
             .replaceAll("\\n{3,}", "\n\n")
             .trim();
-    }
-
-    private String applyClearSpeech(String value) {
-        return value
-            .replace("รอเรือ", "รอ เรือ")
-            .replace("ร เรือ", "รอ เรือ")
-            .replace("ร.เรือ", "รอ เรือ")
-            .replace("ร. เรือ", "รอ เรือ")
-            .replace("ลอลิง", "ลอ ลิง")
-            .replace("ล ลิง", "ลอ ลิง")
-            .replace("ล.ลิง", "ลอ ลิง")
-            .replace("ล. ลิง", "ลอ ลิง")
-            .replace("ลลิง", "ลอ ลิง");
     }
 
     private void splitLongText(String value) {
@@ -597,6 +629,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
             : "แบ่งข้อความอัตโนมัติเป็น " + chunks.size() + " ช่วง");
         readingSession = System.currentTimeMillis();
         nextChunkToQueue = 0;
+        startReadingTimer();
 
         if (!queueNextStableChunk(TextToSpeech.QUEUE_FLUSH)) return;
         queueNextStableChunk(TextToSpeech.QUEUE_ADD);
@@ -621,11 +654,64 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         if (result != TextToSpeech.SUCCESS) {
             readingActive = false;
             tts.stop();
+            stopReadingTimer(false);
             releaseAudioFocus();
             runOnUiThread(() -> status.setText("จัดคิวอ่านข้อความไม่สำเร็จ"));
             return false;
         }
         return true;
+    }
+
+    private final Runnable timerTick = new Runnable() {
+        @Override public void run() {
+            if (!readingActive || readingStartedAt == 0L) return;
+            long elapsed = System.currentTimeMillis() - readingStartedAt;
+            timeValue.setText(formatElapsed(elapsed));
+            timerHandler.postDelayed(this, 1000);
+        }
+    };
+
+    private void startReadingTimer() {
+        readingStartedAt = System.currentTimeMillis();
+        timeValue.setText("00:00");
+        readingProgress.setProgress(0);
+        timerHandler.removeCallbacks(timerTick);
+        timerHandler.post(timerTick);
+    }
+
+    private void stopReadingTimer(boolean reset) {
+        timerHandler.removeCallbacks(timerTick);
+        if (readingStartedAt != 0L && !reset) {
+            timeValue.setText(formatElapsed(
+                System.currentTimeMillis() - readingStartedAt));
+        }
+        if (reset) {
+            readingStartedAt = 0L;
+            timeValue.setText("00:00");
+            readingProgress.setProgress(0);
+        }
+    }
+
+    private String formatElapsed(long milliseconds) {
+        long totalSeconds = Math.max(0, milliseconds / 1000);
+        return String.format(
+            Locale.US, "%02d:%02d", totalSeconds / 60, totalSeconds % 60);
+    }
+
+    private void updateReadingProgress(int currentChunk, int localEnd) {
+        if (readingProgress == null || chunks.isEmpty()) return;
+        int completed = 0;
+        for (int i = 0; i < currentChunk && i < chunks.size(); i++) {
+            completed += chunks.get(i).length();
+        }
+        if (currentChunk >= 0 && currentChunk < chunks.size()) {
+            completed += Math.min(localEnd, chunks.get(currentChunk).length());
+        }
+        int total = 0;
+        for (String part : chunks) total += part.length();
+        int progress = total == 0 ? 0 :
+            Math.min(1000, Math.round(completed * 1000f / total));
+        readingProgress.setProgress(progress);
     }
 
     private void createAudioFocusRequest() {
@@ -670,6 +756,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     private void stopReading() {
         readingActive = false;
         if (tts != null) tts.stop();
+        stopReadingTimer(false);
         releaseAudioFocus();
     }
 
