@@ -186,7 +186,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         longTextMode.setTextColor(Color.rgb(242,214,145));
         longTextMode.setChecked(true);
         longTextMode.setBackground(panelBackground());
-        longTextMode.setPadding(dp(14), dp(10), dp(14), dp(10));
+        longTextMode.setPadding(dp(12), dp(4), dp(12), dp(4));
         longTextMode.setElevation(dp(7));
         root.addView(longTextMode, new LinearLayout.LayoutParams(-1, dp(44)));
 
@@ -203,9 +203,9 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         dhammaMode.setSingleLine(true);
         dhammaMode.setTextColor(Color.rgb(242,214,145));
         dhammaMode.setBackground(panelBackground());
-        dhammaMode.setPadding(dp(14), dp(12), dp(14), dp(12));
+        dhammaMode.setPadding(dp(12), dp(4), dp(12), dp(4));
         dhammaMode.setElevation(dp(7));
-        dhammaMode.setPadding(0, dp(12), 0, dp(12));
+        dhammaMode.setPadding(dp(12), dp(4), dp(12), dp(4));
         root.addView(dhammaMode, new LinearLayout.LayoutParams(-1, dp(44)));
 
         speedValue = text("", 15, Color.rgb(202,210,230));
@@ -401,14 +401,14 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
             @Override public View getView(int position, View convertView, ViewGroup parent) {
                 TextView v = (TextView) super.getView(position, convertView, parent);
                 v.setTextColor(Color.WHITE);
-                v.setTextSize(17);
+                v.setTextSize(14);
                 v.setPadding(dp(14), 0, dp(14), 0);
                 return v;
             }
             @Override public View getDropDownView(int position, View convertView, ViewGroup parent) {
                 TextView v = (TextView) super.getDropDownView(position, convertView, parent);
                 v.setTextColor(Color.rgb(24,31,52));
-                v.setTextSize(17);
+                v.setTextSize(15);
                 v.setBackgroundColor(Color.WHITE);
                 v.setPadding(dp(14), dp(14), dp(14), dp(14));
                 return v;
