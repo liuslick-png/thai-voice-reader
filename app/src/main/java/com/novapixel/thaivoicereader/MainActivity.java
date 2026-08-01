@@ -3,6 +3,7 @@ package com.novapixel.thaivoicereader;
 import android.app.Activity;
 import android.content.ContentValues;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.media.AudioAttributes;
 import android.net.Uri;
 import android.os.Bundle;
@@ -52,10 +53,33 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
+    private GradientDrawable raisedBackground(int color) {
+        int lighter = Color.rgb(
+            Math.min(255, Color.red(color) + 34),
+            Math.min(255, Color.green(color) + 34),
+            Math.min(255, Color.blue(color) + 34));
+        GradientDrawable g = new GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            new int[]{lighter, color});
+        g.setCornerRadius(dp(18));
+        g.setStroke(dp(1), Color.argb(110, 255, 255, 255));
+        return g;
+    }
+
+    private GradientDrawable panelBackground() {
+        GradientDrawable g = new GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            new int[]{Color.rgb(32, 42, 70), Color.rgb(18, 25, 47)});
+        g.setCornerRadius(dp(22));
+        g.setStroke(dp(1), Color.rgb(79, 92, 130));
+        return g;
+    }
+
     private Button button(String label, int color) {
         Button b = new Button(this);
         b.setText(label); b.setTextColor(Color.WHITE); b.setTextSize(16);
-        b.setBackgroundColor(color);
+        b.setBackground(raisedBackground(color));
+        b.setElevation(dp(10));
         b.setAllCaps(false);
         b.setGravity(Gravity.CENTER);
         b.setMinHeight(dp(60));
@@ -67,45 +91,56 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
 
     private void buildUi() {
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(Color.rgb(246,247,251));
+        scroll.setBackgroundColor(Color.rgb(8,13,28));
+        getWindow().setStatusBarColor(Color.rgb(8,13,28));
+        getWindow().setNavigationBarColor(Color.rgb(8,13,28));
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(24, 28, 24, 30);
+        root.setPadding(dp(18), dp(24), dp(18), dp(32));
         scroll.addView(root);
 
-        TextView title = text("เสียงไทย Offline", 28, Color.rgb(28,31,50));
+        TextView title = text("✦  เสียงไทย Offline  ✦", 28, Color.rgb(246,205,104));
         title.setGravity(Gravity.CENTER); title.setTypeface(null, 1);
+        title.setShadowLayer(12f, 0f, 5f, Color.rgb(184,121,25));
         root.addView(title);
-        TextView sub = text("อ่านข้อความภาษาไทยโดยไม่เสียค่าบริการ", 15, Color.DKGRAY);
+        TextView sub = text("อ่านข้อความภาษาไทย • ส่วนตัว • ไม่เสียค่าบริการ", 15, Color.rgb(202,210,230));
         sub.setGravity(Gravity.CENTER); root.addView(sub);
 
-        root.addView(text("ข้อความที่ต้องการอ่าน", 17, Color.rgb(28,31,50)));
+        root.addView(text("ข้อความที่ต้องการอ่าน", 17, Color.rgb(242,214,145)));
         input = new EditText(this);
         input.setHint("พิมพ์หรือวางข้อความภาษาไทยที่นี่...");
         input.setGravity(Gravity.TOP);
         input.setMinLines(7);
         input.setTextSize(18);
-        input.setBackgroundColor(Color.WHITE);
-        input.setPadding(18,18,18,18);
+        input.setTextColor(Color.WHITE);
+        input.setHintTextColor(Color.rgb(143,155,184));
+        input.setBackground(panelBackground());
+        input.setElevation(dp(10));
+        input.setPadding(dp(18),dp(18),dp(18),dp(18));
         root.addView(input, new LinearLayout.LayoutParams(-1, -2));
 
-        root.addView(text("เลือกเสียงภาษาไทยที่ติดตั้งในเครื่อง", 17, Color.rgb(28,31,50)));
+        root.addView(text("เลือกเสียงภาษาไทยที่ติดตั้งในเครื่อง", 17, Color.rgb(242,214,145)));
         voiceSpinner = new Spinner(this);
-        voiceSpinner.setBackgroundColor(Color.WHITE);
+        voiceSpinner.setBackground(raisedBackground(Color.rgb(38,49,79)));
+        voiceSpinner.setElevation(dp(8));
+        voiceSpinner.setPadding(dp(14),0,dp(14),0);
         root.addView(voiceSpinner, new LinearLayout.LayoutParams(-1, dp(58)));
 
         dhammaMode = new Switch(this);
         dhammaMode.setText("โหมดพระบรรยายธรรมะ — ช้า ทุ้ม และสงบ");
         dhammaMode.setTextSize(17);
-        dhammaMode.setTextColor(Color.rgb(28,31,50));
+        dhammaMode.setTextColor(Color.rgb(242,214,145));
+        dhammaMode.setBackground(panelBackground());
+        dhammaMode.setPadding(dp(14), dp(12), dp(14), dp(12));
+        dhammaMode.setElevation(dp(7));
         dhammaMode.setPadding(0, dp(12), 0, dp(12));
         root.addView(dhammaMode, new LinearLayout.LayoutParams(-1, dp(64)));
 
-        speedValue = text("", 15, Color.DKGRAY);
+        speedValue = text("", 15, Color.rgb(202,210,230));
         root.addView(speedValue); speedBar = slider(root, 25, 200, 100);
-        pitchValue = text("", 15, Color.DKGRAY);
+        pitchValue = text("", 15, Color.rgb(202,210,230));
         root.addView(pitchValue); pitchBar = slider(root, 50, 150, 100);
-        volumeValue = text("", 15, Color.DKGRAY);
+        volumeValue = text("", 15, Color.rgb(202,210,230));
         root.addView(volumeValue); volumeBar = slider(root, 0, 100, 100);
         updateLabels();
 
@@ -132,13 +167,13 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
 
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        Button speak = button("▶ อ่าน", Color.rgb(91,75,219));
-        Button stop = button("■ หยุด", Color.rgb(100,116,139));
-        Button save = button("⬇ บันทึก WAV", Color.rgb(16,148,112));
+        Button speak = button("▶  อ่าน", Color.rgb(91,75,219));
+        Button stop = button("■  หยุด", Color.rgb(80,95,124));
+        Button save = button("⬇  บันทึก", Color.rgb(16,148,112));
         row.addView(speak); row.addView(stop); row.addView(save); root.addView(row);
 
-        status = text("กำลังเตรียมระบบเสียง...", 15, Color.DKGRAY);
-        status.setGravity(Gravity.CENTER); root.addView(status);
+        status = text("กำลังเตรียมระบบเสียง...", 15, Color.rgb(202,210,230));
+        status.setGravity(Gravity.CENTER); status.setTypeface(null, 1); root.addView(status);
 
         speak.setOnClickListener(v -> startSpeaking());
         stop.setOnClickListener(v -> {
