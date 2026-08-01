@@ -37,7 +37,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     private boolean hasAudioFocus = false;
     private EditText input;
     private Spinner voiceSpinner;
-    private Switch longTextMode, dhammaMode;
+    private Switch dhammaMode;
     private SeekBar speedBar, pitchBar, volumeBar;
     private TextView speedValue, pitchValue, volumeValue, charCounter, timeValue, status;
     private ProgressBar readingProgress;
@@ -47,7 +47,6 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     private final List<Voice> thaiVoices = new ArrayList<>();
     private final List<String> chunks = new ArrayList<>();
     private static final int MAX_INPUT_CHARS = 950;
-    private static final int READING_CHUNK_SIZE = 950;
     private int chunkIndex = 0;
     private long readingSession = 0L;
     private int nextChunkToQueue = 0;
@@ -163,8 +162,18 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         LinearLayout timeline = new LinearLayout(this);
         timeline.setOrientation(LinearLayout.HORIZONTAL);
         timeline.setGravity(Gravity.CENTER_VERTICAL);
-        timeline.setBackground(panelBackground());
-        timeline.setPadding(dp(8), dp(1), dp(8), dp(1));
+        timeline.setPadding(0, 0, 0, 0);
+
+        Button timelinePlay = new Button(this);
+        timelinePlay.setText("▶");
+        timelinePlay.setTextSize(13);
+        timelinePlay.setTextColor(Color.WHITE);
+        timelinePlay.setBackground(raisedBackground(Color.rgb(91,75,219)));
+        timelinePlay.setPadding(0, 0, 0, 0);
+        timelinePlay.setMinHeight(0);
+        timelinePlay.setMinimumHeight(0);
+        timeline.addView(timelinePlay,
+            new LinearLayout.LayoutParams(dp(32), dp(24)));
         readingProgress = new ProgressBar(
             this, null, android.R.attr.progressBarStyleHorizontal);
         readingProgress.setMax(1000);
@@ -175,8 +184,20 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         timeline.addView(timeValue, new LinearLayout.LayoutParams(dp(48), dp(22)));
         LinearLayout.LayoutParams progressParams =
             new LinearLayout.LayoutParams(0, dp(6), 1);
-        progressParams.setMargins(dp(6), 0, dp(3), 0);
+        progressParams.setMargins(dp(5), 0, dp(5), 0);
         timeline.addView(readingProgress, progressParams);
+
+        Button timelineStop = new Button(this);
+        timelineStop.setText("■");
+        timelineStop.setTextSize(11);
+        timelineStop.setTextColor(Color.WHITE);
+        timelineStop.setBackground(raisedBackground(Color.rgb(80,95,124)));
+        timelineStop.setPadding(0, 0, 0, 0);
+        timelineStop.setMinHeight(0);
+        timelineStop.setMinimumHeight(0);
+        timeline.addView(timelineStop,
+            new LinearLayout.LayoutParams(dp(32), dp(24)));
+
         LinearLayout.LayoutParams timelineParams =
             new LinearLayout.LayoutParams(-1, dp(26));
         timelineParams.setMargins(0, dp(3), 0, 0);
@@ -233,23 +254,26 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
             status.setText("ย้อนกลับข้อความแล้ว");
         });
 
-        longTextMode = new Switch(this);
-        longTextMode.setText("Long Text  •  Auto");
-        longTextMode.setTextSize(14);
-        longTextMode.setSingleLine(true);
-        longTextMode.setTextColor(Color.rgb(242,214,145));
-        longTextMode.setChecked(true);
-        longTextMode.setBackground(panelBackground());
-        longTextMode.setPadding(dp(12), dp(4), dp(12), dp(4));
-        longTextMode.setElevation(dp(7));
-        root.addView(longTextMode, new LinearLayout.LayoutParams(-1, dp(44)));
+        LinearLayout voicePanel = new LinearLayout(this);
+        voicePanel.setOrientation(LinearLayout.VERTICAL);
+        voicePanel.setBackground(panelBackground());
+        voicePanel.setPadding(dp(10), dp(4), dp(10), dp(6));
+        voicePanel.setElevation(dp(6));
 
-        root.addView(text("Thai Voice", 15, Color.rgb(242,214,145)));
+        TextView voiceTitle = text("Thai Voice", 13, Color.rgb(242,214,145));
+        voiceTitle.setPadding(dp(5), 0, dp(5), 0);
+        voicePanel.addView(voiceTitle, new LinearLayout.LayoutParams(-1, dp(24)));
+
         voiceSpinner = new Spinner(this);
         voiceSpinner.setBackground(raisedBackground(Color.rgb(38,49,79)));
-        voiceSpinner.setElevation(dp(8));
-        voiceSpinner.setPadding(dp(14),0,dp(14),0);
-        root.addView(voiceSpinner, new LinearLayout.LayoutParams(-1, dp(44)));
+        voiceSpinner.setElevation(dp(4));
+        voiceSpinner.setPadding(dp(10),0,dp(10),0);
+        voicePanel.addView(voiceSpinner, new LinearLayout.LayoutParams(-1, dp(38)));
+
+        LinearLayout.LayoutParams voicePanelParams =
+            new LinearLayout.LayoutParams(-1, dp(72));
+        voicePanelParams.setMargins(0, dp(3), 0, dp(3));
+        root.addView(voicePanel, voicePanelParams);
 
         dhammaMode = new Switch(this);
         dhammaMode.setText("Dhamma  •  Slow & Deep");
@@ -260,7 +284,10 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         dhammaMode.setPadding(dp(12), dp(4), dp(12), dp(4));
         dhammaMode.setElevation(dp(7));
         dhammaMode.setPadding(dp(12), dp(4), dp(12), dp(4));
-        root.addView(dhammaMode, new LinearLayout.LayoutParams(-1, dp(44)));
+        LinearLayout.LayoutParams dhammaParams =
+            new LinearLayout.LayoutParams(-1, dp(44));
+        dhammaParams.setMargins(0, dp(3), 0, dp(3));
+        root.addView(dhammaMode, dhammaParams);
 
         speedValue = text("", 15, Color.rgb(202,210,230));
         speedBar = stepper(root, speedValue, 25, 200, 100, 5);
@@ -285,19 +312,21 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         Button speak = button("Read", Color.rgb(91,75,219));
-        Button stop = button("Stop", Color.rgb(80,95,124));
         Button save = button("Save WAV", Color.rgb(16,148,112));
-        row.addView(speak); row.addView(stop); row.addView(save); root.addView(row);
+        row.addView(speak); row.addView(save); root.addView(row);
 
         status = text("กำลังเตรียมระบบเสียง...", 15, Color.rgb(202,210,230));
         status.setGravity(Gravity.CENTER); status.setTypeface(null, 1); root.addView(status);
 
         speak.setOnClickListener(v -> startSpeaking());
-        stop.setOnClickListener(v -> {
+        timelinePlay.setOnClickListener(v -> startSpeaking());
+        timelineStop.setOnClickListener(v -> {
             stopReading();
             saving = false;
             chunks.clear();
             chunkIndex = 0;
+            nextChunkToQueue = 0;
+            stopReadingTimer(true);
             status.setText("หยุดแล้ว");
         });
         save.setOnClickListener(v -> startSaving());
@@ -544,19 +573,15 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
             return false;
         }
         chunks.clear();
-        if (longTextMode != null && longTextMode.isChecked()) {
-            splitLongText(value);
-        } else {
-            int engineLimit = TextToSpeech.getMaxSpeechInputLength() - 100;
-            if (value.length() > engineLimit) {
-                Toast.makeText(
-                    this,
-                    "ข้อความยาวเกินไป กรุณาเปิดโหมดแบ่งช่วงอัตโนมัติ",
-                    Toast.LENGTH_LONG).show();
-                return false;
-            }
-            chunks.add(value);
+        int engineLimit = TextToSpeech.getMaxSpeechInputLength() - 100;
+        if (value.length() > engineLimit) {
+            Toast.makeText(
+                this,
+                "ข้อความยาวเกินขีดจำกัดของระบบเสียง",
+                Toast.LENGTH_LONG).show();
+            return false;
         }
+        chunks.add(value);
         chunkIndex = 0;
         return !chunks.isEmpty();
     }
@@ -570,53 +595,6 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
             .replaceAll(" *\\n *", "\n")
             .replaceAll("\\n{3,}", "\n\n")
             .trim();
-    }
-
-    private void splitLongText(String value) {
-        int engineLimit = Math.max(500, TextToSpeech.getMaxSpeechInputLength() - 100);
-        int chunkLimit = Math.min(READING_CHUNK_SIZE, engineLimit);
-        int start = 0;
-
-        while (start < value.length()) {
-            while (start < value.length() && Character.isWhitespace(value.charAt(start))) start++;
-            if (start >= value.length()) break;
-
-            int hardEnd = Math.min(start + chunkLimit, value.length());
-            int end = hardEnd;
-
-            if (hardEnd < value.length()) {
-                int preferredStart = start + (chunkLimit * 55 / 100);
-                int naturalBreak = findNaturalBreak(value, preferredStart, hardEnd);
-                if (naturalBreak > start) {
-                    end = naturalBreak;
-                } else {
-                    int spaceBreak = findWhitespaceBreak(value, preferredStart, hardEnd);
-                    if (spaceBreak > start) end = spaceBreak;
-                }
-            }
-
-            String part = value.substring(start, end).trim();
-            if (!part.isEmpty()) chunks.add(part);
-            start = end;
-        }
-    }
-
-    private int findNaturalBreak(String value, int from, int to) {
-        for (int i = to - 1; i >= from; i--) {
-            char ch = value.charAt(i);
-            if (ch == '\n' || ch == '.' || ch == '!' || ch == '?' ||
-                ch == 'ฯ' || ch == '。' || ch == '！' || ch == '？') {
-                return i + 1;
-            }
-        }
-        return -1;
-    }
-
-    private int findWhitespaceBreak(String value, int from, int to) {
-        for (int i = to - 1; i >= from; i--) {
-            if (Character.isWhitespace(value.charAt(i))) return i;
-        }
-        return -1;
     }
 
     private Bundle params() {
