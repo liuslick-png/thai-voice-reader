@@ -124,7 +124,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         root.setPadding(dp(18), dp(24), dp(18), dp(32));
         scroll.addView(root);
 
-        TextView title = text("✦  เสียงไทย Offline  ✦", 28, Color.rgb(246,205,104));
+        TextView title = text("✦  SiamVoice Offline  ✦", 28, Color.rgb(246,205,104));
         title.setGravity(Gravity.CENTER); title.setTypeface(null, 1);
         title.setShadowLayer(12f, 0f, 5f, Color.rgb(184,121,25));
         root.addView(title);
