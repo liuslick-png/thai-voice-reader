@@ -43,6 +43,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     private ProgressBar readingProgress;
     private final Handler timerHandler = new Handler(Looper.getMainLooper());
     private long readingStartedAt = 0L;
+    private long estimatedReadingDurationMs = 1L;
     private Voice phoneDefaultVoice;
     private final List<Voice> thaiVoices = new ArrayList<>();
     private final List<String> chunks = new ArrayList<>();
@@ -449,7 +450,6 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
                                 int current = Integer.parseInt(parts[2]) + 1;
                                 int total = Integer.parseInt(parts[3]);
                                 chunkIndex = current - 1;
-                                updateReadingProgress(current - 1, 0);
                                 status.setText("กำลังอ่านช่วงที่ " + current + " จาก " + total);
                             } catch (NumberFormatException ignored) {
                                 status.setText("กำลังอ่านข้อความยาว...");
@@ -457,23 +457,6 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
                         }
                     }
                 });
-            }
-            @Override public void onRangeStart(
-                String id, int start, int end, int frame) {
-                if (readingActive && id != null && id.startsWith("long_")) {
-                    String[] parts = id.split("_");
-                    if (parts.length == 4) {
-                        try {
-                            int currentChunk = Integer.parseInt(parts[2]);
-                            // onRangeStart fires when Android begins speaking
-                            // this range. Tracking its start keeps the timeline
-                            // aligned with audio instead of jumping ahead to the
-                            // end of the word before it has been spoken.
-                            runOnUiThread(() ->
-                                updateReadingProgress(currentChunk, start));
-                        } catch (NumberFormatException ignored) {}
-                    }
-                }
             }
             public void onError(String id) {
                 readingActive = false;
@@ -672,12 +655,26 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
             if (!readingActive || readingStartedAt == 0L) return;
             long elapsed = System.currentTimeMillis() - readingStartedAt;
             timeValue.setText(formatElapsed(elapsed));
+            // Keep the bar on the same real-time clock as the elapsed label.
+            // Android TTS range callbacks can arrive ahead of audible speech.
+            int progress = (int) Math.min(
+                950L,
+                elapsed * 1000L / Math.max(1L, estimatedReadingDurationMs));
+            readingProgress.setProgress(progress);
             timerHandler.postDelayed(this, 1000);
         }
     };
 
     private void startReadingTimer() {
         readingStartedAt = System.currentTimeMillis();
+        int totalCharacters = 0;
+        for (String part : chunks) totalCharacters += part.length();
+        float speechRate = Math.max(0.25f, speedBar.getProgress() / 100f);
+        // Thai voices average roughly 80 ms per character at normal speed.
+        // The estimate drives only the visual bar; onDone remains authoritative.
+        estimatedReadingDurationMs = Math.max(
+            1000L,
+            Math.round(totalCharacters * 80f / speechRate));
         timeValue.setText("00:00");
         readingProgress.setProgress(0);
         timerHandler.removeCallbacks(timerTick);
@@ -705,24 +702,6 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         long totalSeconds = Math.max(0, milliseconds / 1000);
         return String.format(
             Locale.US, "%02d:%02d", totalSeconds / 60, totalSeconds % 60);
-    }
-
-    private void updateReadingProgress(int currentChunk, int localEnd) {
-        if (readingProgress == null || chunks.isEmpty()) return;
-        int completed = 0;
-        for (int i = 0; i < currentChunk && i < chunks.size(); i++) {
-            completed += chunks.get(i).length();
-        }
-        if (currentChunk >= 0 && currentChunk < chunks.size()) {
-            completed += Math.min(localEnd, chunks.get(currentChunk).length());
-        }
-        int total = 0;
-        for (String part : chunks) total += part.length();
-        // Reserve the final 2% for the real onDone callback. Some engines
-        // announce the last text range before its audio has finished playing.
-        int progress = total == 0 ? 0 :
-            Math.min(980, Math.round(completed * 1000f / total));
-        readingProgress.setProgress(progress);
     }
 
     private void createAudioFocusRequest() {
