@@ -22,7 +22,6 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.text.method.ScrollingMovementMethod;
 import android.widget.*;
 import java.io.File;
 import java.io.FileInputStream;
@@ -140,7 +139,12 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         input.setMaxLines(4);
         input.setVerticalScrollBarEnabled(true);
         input.setScrollBarStyle(View.SCROLLBARS_INSIDE_INSET);
-        input.setMovementMethod(new ScrollingMovementMethod());
+        // Keep EditText's default movement method. Replacing it with
+        // ScrollingMovementMethod prevents long-press text selection on some
+        // Android devices. A multiline EditText scrolls its contents natively.
+        input.setLongClickable(true);
+        input.setTextIsSelectable(true);
+        input.setCursorVisible(true);
         input.setOverScrollMode(View.OVER_SCROLL_ALWAYS);
         input.setTextSize(18);
         input.setTextColor(Color.WHITE);
