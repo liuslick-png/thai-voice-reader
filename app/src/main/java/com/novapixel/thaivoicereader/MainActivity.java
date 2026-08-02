@@ -465,8 +465,12 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
                     if (parts.length == 4) {
                         try {
                             int currentChunk = Integer.parseInt(parts[2]);
+                            // onRangeStart fires when Android begins speaking
+                            // this range. Tracking its start keeps the timeline
+                            // aligned with audio instead of jumping ahead to the
+                            // end of the word before it has been spoken.
                             runOnUiThread(() ->
-                                updateReadingProgress(currentChunk, end));
+                                updateReadingProgress(currentChunk, start));
                         } catch (NumberFormatException ignored) {}
                     }
                 }
@@ -714,8 +718,10 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         }
         int total = 0;
         for (String part : chunks) total += part.length();
+        // Reserve the final 2% for the real onDone callback. Some engines
+        // announce the last text range before its audio has finished playing.
         int progress = total == 0 ? 0 :
-            Math.min(1000, Math.round(completed * 1000f / total));
+            Math.min(980, Math.round(completed * 1000f / total));
         readingProgress.setProgress(progress);
     }
 
