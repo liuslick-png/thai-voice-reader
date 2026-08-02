@@ -296,11 +296,15 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         root.addView(dhammaMode, dhammaParams);
 
         speedValue = text("", 15, Color.rgb(202,210,230));
-        speedBar = stepper(root, speedValue, 25, 200, 100, 5);
+        speedBar = stepper(
+            root, speedValue, 25, 200, 100, 5,
+            new int[]{100, 120, 130, 150, 180});
         pitchValue = text("", 15, Color.rgb(202,210,230));
-        pitchBar = stepper(root, pitchValue, 50, 150, 100, 5);
+        pitchBar = stepper(
+            root, pitchValue, 79, 126, 100, 1,
+            new int[]{79, 89, 100, 112, 126});
         volumeValue = text("", 15, Color.rgb(202,210,230));
-        volumeBar = stepper(root, volumeValue, 0, 100, 100, 5);
+        volumeBar = stepper(root, volumeValue, 0, 100, 100, 10, null);
         updateLabels();
         dhammaMode.setOnCheckedChangeListener((buttonView, checked) -> {
             if (checked) {
@@ -363,7 +367,8 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     }
 
     private SeekBar stepper(LinearLayout root, TextView valueLabel,
-                            int min, int max, int value, int step) {
+                            int min, int max, int value, int step,
+                            int[] presets) {
         SeekBar state = new SeekBar(this);
         state.setMin(min);
         state.setMax(max);
@@ -404,21 +409,50 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         root.addView(row, rowParams);
 
         minus.setOnClickListener(v -> {
-            state.setProgress(Math.max(state.getMin(), state.getProgress() - step));
+            state.setProgress(presets == null
+                ? Math.max(state.getMin(), state.getProgress() - step)
+                : previousPreset(state.getProgress(), presets));
             updateLabels();
         });
         plus.setOnClickListener(v -> {
-            state.setProgress(Math.min(state.getMax(), state.getProgress() + step));
+            state.setProgress(presets == null
+                ? Math.min(state.getMax(), state.getProgress() + step)
+                : nextPreset(state.getProgress(), presets));
             updateLabels();
         });
         return state;
     }
 
+    private int previousPreset(int current, int[] presets) {
+        for (int i = presets.length - 1; i >= 0; i--) {
+            if (presets[i] < current) return presets[i];
+        }
+        return current < presets[0] ? current : presets[0];
+    }
+
+    private int nextPreset(int current, int[] presets) {
+        for (int preset : presets) {
+            if (preset > current) return preset;
+        }
+        return presets[presets.length - 1];
+    }
+
     private void updateLabels() {
         if (speedValue == null) return;
-        speedValue.setText("Speed  " + speedBar.getProgress() + "%" +
+        String speedText = speedBar.getProgress() == 82
+            ? "0.82x"
+            : String.format(Locale.US, "%.1fx", speedBar.getProgress() / 100f);
+        speedValue.setText("Speed  " + speedText +
             (dhammaMode != null && dhammaMode.isChecked() ? "  •  Dhamma" : ""));
-        pitchValue.setText("Pitch  " + pitchBar.getProgress() + "%");
+        int key;
+        switch (pitchBar.getProgress()) {
+            case 79: key = -4; break;
+            case 89: key = -2; break;
+            case 112: key = 2; break;
+            case 126: key = 4; break;
+            default: key = 0;
+        }
+        pitchValue.setText("Key  " + (key > 0 ? "+" : "") + key);
         volumeValue.setText("Volume  " + volumeBar.getProgress() + "%");
     }
 
