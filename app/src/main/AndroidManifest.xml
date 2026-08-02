@@ -9,7 +9,7 @@
         android:allowBackup="true"
         android:icon="@drawable/app_icon"
         android:roundIcon="@drawable/app_icon"
-        android:label="เสียงไทย Offline"
+        android:label="SiamVoice Offline"
         android:theme="@style/AppTheme">
         <activity
             android:name=".MainActivity"
